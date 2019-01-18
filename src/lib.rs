@@ -45,15 +45,15 @@ use winapi::um::winuser::{DefWindowProcW, WM_CLOSE, WM_QUIT};
 /// thread. The handler will *override* the default behavior of the signal, in
 /// which most cases, is to end the process.
 ///
-/// * `body` - The code to execute while the trap is active.
-pub fn trap(
+/// * `body` - The code to execute while the trap is active. The return value
+/// will be passed to the `Ok` value of the trap call.
+pub fn trap<RT: Sized>(
     signals: impl AsRef<[Signal]>,
     handler: impl Fn(Signal) + Send + Sync + 'static,
-    body: impl FnOnce(),
-) -> Result<(), Error> {
+    body: impl FnOnce() -> RT,
+) -> Result<RT, Error> {
     let _trap_guard = Trap::new(Vec::from(signals.as_ref()), Arc::new(handler))?;
-    body();
-    Ok(())
+    Ok(body())
 }
 
 /// Represents one of several abstracted "signals" available to Windows
@@ -375,12 +375,12 @@ mod tests {
     fn test_nested_traps() {
         trap(
             &[Signal::CtrlC, Signal::CloseWindow],
-            |signal| {},
+            |_| {},
             || {
                 println!("Trap 1");
                 trap(
                     &[Signal::CtrlC, Signal::CtrlBreak],
-                    |signal| {},
+                    |_| {},
                     || {
                         println!("Trap 2");
                     },

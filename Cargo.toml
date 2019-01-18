@@ -1,6 +1,6 @@
 [package]
 name = "wintrap"
-version = "0.1.0"
+version = "0.1.1"
 description = "A Windows signal-trapping library"
 authors = ["Eliza Velasquez"]
 edition = "2018"

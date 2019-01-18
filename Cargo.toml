@@ -1,8 +1,13 @@
 [package]
 name = "wintrap"
 version = "0.1.0"
+description = "A Windows signal-trapping library"
 authors = ["Eliza Velasquez"]
 edition = "2018"
+repository = "https://github.com/elizagamedev/wintrap-rs"
+readme = "README.md"
+keywords = ["windows", "signal", "unix", "trap", "trapper"]
+license = "MIT"
 
 [dependencies]
 winapi = { version = "0.3", features = ["minwindef", "windef", "consoleapi", "winuser", "errhandlingapi", "libloaderapi", "winbase"] }

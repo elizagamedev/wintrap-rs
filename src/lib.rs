@@ -5,7 +5,7 @@
 //! # Examples
 //!
 //! ```
-//! wintrap::trap(&[wintrap::Signal::CtrlC, wintrap::Signal::CloseWindow], |signal| {
+//! wintrap::trap(vec![wintrap::Signal::CtrlC, wintrap::Signal::CloseWindow], |signal| {
 //!     // handle signal here
 //!     println!("Caught a signal: {:?}", signal);
 //! }, || {
@@ -13,6 +13,12 @@
 //!     // println!("Doing work");
 //! }).unwrap();
 //! ```
+//!
+//! # Caveats
+//!
+//! Please note that it is not possible to correctly trap Ctrl-C signals when
+//! running programs via `cargo run`. You will have to run them directly via
+//! the target directory after building.
 
 #![feature(optin_builtin_traits)]
 #[macro_use]
@@ -37,7 +43,7 @@ use winapi::um::winuser::{DefWindowProcW, WM_CLOSE, WM_QUIT};
 ///
 /// # Arguments
 ///
-/// * `signals` - A list of signals to trap during the execution of `body`.
+/// * `signals` - A vec of signals to trap during the execution of `body`.
 ///
 /// * `handler` - The handler to execute whenever a signal is trapped. While
 /// this function obviously runs asynchronously to `body`, the handler will
@@ -48,11 +54,11 @@ use winapi::um::winuser::{DefWindowProcW, WM_CLOSE, WM_QUIT};
 /// * `body` - The code to execute while the trap is active. The return value
 /// will be passed to the `Ok` value of the trap call.
 pub fn trap<RT: Sized>(
-    signals: impl AsRef<[Signal]>,
+    signals: Vec<Signal>,
     handler: impl Fn(Signal) + Send + Sync + 'static,
     body: impl FnOnce() -> RT,
 ) -> Result<RT, Error> {
-    let _trap_guard = Trap::new(Vec::from(signals.as_ref()), Arc::new(handler))?;
+    let _trap_guard = Trap::new(signals, Arc::new(handler))?;
     Ok(body())
 }
 
@@ -219,7 +225,11 @@ impl TrapStack {
     fn pop_trap(&mut self, signals: &[Signal]) {
         self.decrement_trap_count();
         for signal in signals.iter() {
-            self.callbacks.get_mut(signal).unwrap().pop_back().unwrap();
+            let callbacks = self.callbacks.get_mut(signal).unwrap();
+            callbacks.pop_back().unwrap();
+            if callbacks.is_empty() {
+                self.callbacks.remove(signal);
+            }
         }
     }
 
@@ -290,11 +300,10 @@ impl TrapThreadData {
                         Signal::from_window_message(msg.message, msg.wParam, msg.lParam)
                     {
                         let trap_stack = TRAP_STACK.lock().unwrap();
-                        if let Some(ref callback_list) = trap_stack.callbacks.get(&signal) {
+                        if let Some(callback_list) = trap_stack.callbacks.get(&signal) {
                             callback_list.back().unwrap()(signal);
                         } else if msg.message == WM_CLOSE {
                             // Exit the process if we don't own any other windows.
-                            let trap_stack = TRAP_STACK.lock().unwrap();
                             trap_stack.exit_if_only_window();
                         }
                     }
@@ -374,12 +383,12 @@ mod tests {
     #[test]
     fn test_nested_traps() {
         trap(
-            &[Signal::CtrlC, Signal::CloseWindow],
+            vec![Signal::CtrlC, Signal::CloseWindow],
             |_| {},
             || {
                 println!("Trap 1");
                 trap(
-                    &[Signal::CtrlC, Signal::CtrlBreak],
+                    vec![Signal::CtrlC, Signal::CtrlBreak],
                     |_| {},
                     || {
                         println!("Trap 2");
@@ -394,7 +403,7 @@ mod tests {
     #[test]
     fn test_trap_exit_and_reenter() {
         trap(
-            &[Signal::CtrlC],
+            vec![Signal::CtrlC],
             |_| {},
             || {
                 println!("Trap 1");
@@ -402,7 +411,7 @@ mod tests {
         )
         .unwrap();
         trap(
-            &[Signal::CtrlC],
+            vec![Signal::CtrlC],
             |_| {},
             || {
                 println!("Trap 2");

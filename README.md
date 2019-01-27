@@ -7,7 +7,7 @@ while active.
 # Examples
 
 ```
-wintrap::trap(&[wintrap::Signal::CtrlC, wintrap::Signal::CloseWindow], |signal| {
+wintrap::trap(vec![wintrap::Signal::CtrlC, wintrap::Signal::CloseWindow], |signal| {
     // handle signal here
     println!("Caught a signal: {:?}", signal);
 }, || {
@@ -15,3 +15,9 @@ wintrap::trap(&[wintrap::Signal::CtrlC, wintrap::Signal::CloseWindow], |signal| 
     // println!("Doing work");
 }).unwrap();
 ```
+
+# Caveats
+
+Please note that it is not possible to correctly trap Ctrl-C signals when
+running programs via `cargo run`. You will have to run them directly via the
+target directory after building.

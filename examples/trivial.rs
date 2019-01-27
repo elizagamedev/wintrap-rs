@@ -6,7 +6,7 @@ fn main() {
     let pair2 = pair.clone();
 
     wintrap::trap(
-        &[
+        vec![
             wintrap::Signal::CtrlC,
             wintrap::Signal::CtrlBreak,
             wintrap::Signal::CloseWindow,

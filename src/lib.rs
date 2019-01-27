@@ -1,6 +1,6 @@
 //! The `wintrap` crate allows a Windows process to trap one or more abstracted
-//! "signals", running an asynchronous callback function whenever they are
-//! caught while active.
+//! "signals", running a callback function in a dedicated thread whenever they
+//! are caught while active.
 //!
 //! # Examples
 //!
@@ -10,7 +10,7 @@
 //!     println!("Caught a signal: {:?}", signal);
 //! }, || {
 //!     // do work
-//!     // println!("Doing work");
+//!     println!("Doing work");
 //! }).unwrap();
 //! ```
 //!
@@ -35,24 +35,23 @@ use winapi::shared::windef::HWND;
 use winapi::um::wincon::{CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT, CTRL_C_EVENT};
 use winapi::um::winuser::{DefWindowProcW, WM_CLOSE, WM_QUIT};
 
-/// Associates one or more [Signal]s to an asynchronous callback function while
-/// `body` is executing. A caveat of its usage is that *only one thread* is
-/// ever able to use traps throughout the entire execution of your program. You
-/// are free to nest traps freely, however, only the innermost signal handlers
-/// will be executed.
+/// Associates one or more [Signal]s to an callback function to be executed in
+/// a dedicated thread while `body` is executing. A caveat of its usage is that
+/// *only one thread* is ever able to trap signals throughout the entire
+/// execution of your program. You are free to nest traps freely, however, only
+/// the innermost signal handlers will be executed.
 ///
 /// # Arguments
 ///
 /// * `signals` - A vec of signals to trap during the execution of `body`.
 ///
-/// * `handler` - The handler to execute whenever a signal is trapped. While
-/// this function obviously runs asynchronously to `body`, the handler will
-/// handle all trapped signals synchronously in the order received in its own
-/// thread. The handler will *override* the default behavior of the signal, in
-/// which most cases, is to end the process.
+/// * `handler` - The handler to execute whenever a signal is trapped. These
+/// signals will be trapped and handled in the order that they are received in
+/// a dedicated thread. The handler will *override* the default behavior of the
+/// signal, in which most cases, is to end the process.
 ///
 /// * `body` - The code to execute while the trap is active. The return value
-/// will be passed to the `Ok` value of the trap call.
+/// will be used as the `Ok` value of the result of the trap call.
 pub fn trap<RT: Sized>(
     signals: Vec<Signal>,
     handler: impl Fn(Signal) + Send + Sync + 'static,
@@ -117,7 +116,19 @@ impl Signal {
 /// rarely ever be produced, and you can unwrap `Result`s safely in most cases.
 #[derive(Debug)]
 pub enum Error {
+    /// An error setting the console control handler. The DWORD is the Windows
+    /// error code; see the [MSDN
+    /// documentation](https://docs.microsoft.com/en-us/windows/console/setconsolectrlhandler)
+    /// for details.
     SetConsoleCtrlHandler(DWORD),
+
+    /// An error occurred when creating a window or registering its window
+    /// class. The DWORD is the Windows error code; see the MSDN documentation
+    /// on
+    /// [RegisterClassW](https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-registerclassw)
+    /// and
+    /// [CreateWindowExW](https://docs.microsoft.com/en-us/windows/desktop/api/winuser/nf-winuser-createwindowexw)
+    /// for more details.
     CreateWindow(DWORD),
 }
 

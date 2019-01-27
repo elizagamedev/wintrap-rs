@@ -12,7 +12,7 @@ wintrap::trap(vec![wintrap::Signal::CtrlC, wintrap::Signal::CloseWindow], |signa
     println!("Caught a signal: {:?}", signal);
 }, || {
     // do work
-    // println!("Doing work");
+    println!("Doing work");
 }).unwrap();
 ```
 

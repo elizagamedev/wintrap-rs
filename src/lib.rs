@@ -5,7 +5,7 @@
 //! # Examples
 //!
 //! ```
-//! wintrap::trap(vec![wintrap::Signal::CtrlC, wintrap::Signal::CloseWindow], |signal| {
+//! wintrap::trap(&[wintrap::Signal::CtrlC, wintrap::Signal::CloseWindow], |signal| {
 //!     // handle signal here
 //!     println!("Caught a signal: {:?}", signal);
 //! }, || {
@@ -24,6 +24,10 @@
 #[macro_use]
 extern crate lazy_static;
 
+#[cfg(feature = "futures")]
+mod futures;
+#[cfg(feature = "futures")]
+pub use self::futures::*;
 mod windows;
 use crossbeam_channel;
 use std::collections::{HashMap, LinkedList};
@@ -43,7 +47,7 @@ use winapi::um::winuser::{DefWindowProcW, WM_CLOSE, WM_QUIT};
 ///
 /// # Arguments
 ///
-/// * `signals` - A vec of signals to trap during the execution of `body`.
+/// * `signals` - A list of signals to trap during the execution of `body`.
 ///
 /// * `handler` - The handler to execute whenever a signal is trapped. These
 /// signals will be trapped and handled in the order that they are received in
@@ -53,7 +57,7 @@ use winapi::um::winuser::{DefWindowProcW, WM_CLOSE, WM_QUIT};
 /// * `body` - The code to execute while the trap is active. The return value
 /// will be used as the `Ok` value of the result of the trap call.
 pub fn trap<RT: Sized>(
-    signals: Vec<Signal>,
+    signals: &'static [Signal],
     handler: impl Fn(Signal) + Send + Sync + 'static,
     body: impl FnOnce() -> RT,
 ) -> Result<RT, Error> {
@@ -159,17 +163,17 @@ lazy_static! {
 }
 
 struct Trap {
-    signals: Vec<Signal>,
+    signals: &'static [Signal],
 }
 
 impl Trap {
     fn new(
-        signals: Vec<Signal>,
+        signals: &'static [Signal],
         handler: Arc<dyn Fn(Signal) + Send + Sync + 'static>,
     ) -> Result<Self, Error> {
         assert_eq!(*TRAP_OWNER_THREAD_ID, thread::current().id());
         let mut trap_stack = TRAP_STACK.lock().unwrap();
-        trap_stack.push_trap(signals.as_slice(), handler)?;
+        trap_stack.push_trap(signals, handler)?;
         Ok(Trap { signals })
     }
 }
@@ -394,12 +398,12 @@ mod tests {
     #[test]
     fn test_nested_traps() {
         trap(
-            vec![Signal::CtrlC, Signal::CloseWindow],
+            &[Signal::CtrlC, Signal::CloseWindow],
             |_| {},
             || {
                 println!("Trap 1");
                 trap(
-                    vec![Signal::CtrlC, Signal::CtrlBreak],
+                    &[Signal::CtrlC, Signal::CtrlBreak],
                     |_| {},
                     || {
                         println!("Trap 2");
@@ -414,7 +418,7 @@ mod tests {
     #[test]
     fn test_trap_exit_and_reenter() {
         trap(
-            vec![Signal::CtrlC],
+            &[Signal::CtrlC],
             |_| {},
             || {
                 println!("Trap 1");
@@ -422,7 +426,7 @@ mod tests {
         )
         .unwrap();
         trap(
-            vec![Signal::CtrlC],
+            &[Signal::CtrlC],
             |_| {},
             || {
                 println!("Trap 2");

@@ -1,11 +1,11 @@
 [package]
 name = "wintrap"
-version = "0.2.1"
+version = "0.3.0"
 description = "A Windows signal-trapping library"
 authors = ["Eliza Velasquez"]
 edition = "2018"
 repository = "https://github.com/elizagamedev/wintrap-rs"
-documentation = "https://docs.rs/wintrap/0.2.1/"
+documentation = "https://docs.rs/wintrap/0.3.0/"
 readme = "README.md"
 keywords = ["windows", "signal", "unix", "trap", "win32"]
 license = "MIT"
@@ -14,6 +14,16 @@ license = "MIT"
 winapi = { version = "0.3", features = ["minwindef", "windef", "consoleapi", "winuser", "errhandlingapi", "libloaderapi", "winbase"] }
 lazy_static = "1.2"
 crossbeam-channel = "0.3"
+futures = { version = "0.1", optional = true }
+
+[dev-dependencies]
+futures = "0.1"
+tokio = "0.1.15"
 
 [package.metadata.docs.rs]
 default-target = "x86_64-pc-windows-msvc"
+all-features = true
+
+[[example]]
+name = "futures"
+required-features = ["futures"]

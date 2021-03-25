@@ -141,9 +141,9 @@ pub fn format_error(code: DWORD) -> Result<String, DWORD> {
     Ok(result)
 }
 
+#[allow(dead_code)]
 pub struct Window {
     pub hwnd: HWND,
-    #[used]
     window_class: WindowClass,
 }
 

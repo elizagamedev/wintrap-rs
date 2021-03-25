@@ -259,7 +259,7 @@ impl TrapStack {
             struct EnumWindowsData {
                 hwnd: HWND,
                 process_id: DWORD,
-            };
+            }
             let enum_windows_data = EnumWindowsData {
                 hwnd: trap_thread_data.window_handle.hwnd,
                 process_id: process::id(),

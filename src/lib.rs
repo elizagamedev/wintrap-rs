@@ -20,7 +20,6 @@
 //! running programs via `cargo run`. You will have to run them directly via
 //! the target directory after building.
 
-#![feature(optin_builtin_traits)]
 #[macro_use]
 extern crate lazy_static;
 
@@ -164,6 +163,7 @@ lazy_static! {
 
 struct Trap {
     signals: &'static [Signal],
+    _phantom: std::marker::PhantomData<std::rc::Rc<u8>>,
 }
 
 impl Trap {
@@ -174,7 +174,10 @@ impl Trap {
         assert_eq!(*TRAP_OWNER_THREAD_ID, thread::current().id());
         let mut trap_stack = TRAP_STACK.lock().unwrap();
         trap_stack.push_trap(signals, handler)?;
-        Ok(Trap { signals })
+        Ok(Trap {
+            signals,
+            _phantom: std::marker::PhantomData,
+        })
     }
 }
 
@@ -184,9 +187,6 @@ impl Drop for Trap {
         trap_stack.pop_trap(self.signals.as_ref());
     }
 }
-
-impl !Send for Trap {}
-impl !Sync for Trap {}
 
 type TrapCallbacks = HashMap<Signal, LinkedList<Arc<dyn Fn(Signal) + Send + Sync + 'static>>>;
 
@@ -259,7 +259,7 @@ impl TrapStack {
             struct EnumWindowsData {
                 hwnd: HWND,
                 process_id: DWORD,
-            };
+            }
             let enum_windows_data = EnumWindowsData {
                 hwnd: trap_thread_data.window_handle.hwnd,
                 process_id: process::id(),
@@ -395,6 +395,7 @@ unsafe extern "system" fn window_proc(
 mod tests {
     use super::*;
 
+    static_assertions::assert_not_impl_any!(Trap: Send, Sync);
     #[test]
     fn test_nested_traps() {
         trap(

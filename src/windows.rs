@@ -1,6 +1,9 @@
 use std::ffi::OsString;
 use std::os::windows::prelude::*;
-use std::{mem, ptr, slice};
+use std::{
+    mem::{self, MaybeUninit},
+    ptr, slice,
+};
 use winapi::shared::minwindef::{
     ATOM, BOOL, DWORD, FALSE, HINSTANCE, HLOCAL, HMODULE, LPARAM, LRESULT, TRUE, UINT, WPARAM,
 };
@@ -104,14 +107,14 @@ pub fn enum_windows(proc: unsafe extern "system" fn(HWND, LPARAM) -> BOOL, lpara
 
 pub fn get_window_thread_process_id(hwnd: HWND) -> (DWORD, DWORD) {
     unsafe {
-        let mut process_id: DWORD = mem::uninitialized();
+        let mut process_id: DWORD = MaybeUninit::uninit().assume_init();
         let thread_id = GetWindowThreadProcessId(hwnd, &mut process_id as *mut DWORD);
         (thread_id, process_id)
     }
 }
 
 pub fn format_error(code: DWORD) -> Result<String, DWORD> {
-    let mut buf: LPWSTR = unsafe { mem::uninitialized() };
+    let mut buf: LPWSTR = unsafe { MaybeUninit::uninit().assume_init() };
     #[allow(clippy::crosspointer_transmute)]
     let buf_ptr = unsafe { mem::transmute::<*mut LPWSTR, LPWSTR>(&mut buf as *mut LPWSTR) };
     let size = unsafe {
@@ -138,9 +141,9 @@ pub fn format_error(code: DWORD) -> Result<String, DWORD> {
     Ok(result)
 }
 
+#[allow(dead_code)]
 pub struct Window {
     pub hwnd: HWND,
-    #[used]
     window_class: WindowClass,
 }
 
@@ -175,7 +178,7 @@ impl Window {
 
     pub fn run_event_loop(&mut self, message_cb: impl Fn(&MSG)) -> Result<i32, DWORD> {
         loop {
-            let mut msg: MSG = unsafe { mem::uninitialized() };
+            let mut msg: MSG = unsafe { MaybeUninit::uninit().assume_init() };
             let ret = unsafe { GetMessageW(&mut msg as *mut MSG, ptr::null_mut(), 0, 0) };
             if ret > 0 {
                 message_cb(&msg);

@@ -19,6 +19,7 @@ futures = { version = "0.1", optional = true }
 [dev-dependencies]
 futures = "0.1"
 tokio = "0.1.15"
+static_assertions = "1.1.0"
 
 [package.metadata.docs.rs]
 default-target = "x86_64-pc-windows-msvc"
